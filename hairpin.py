@@ -5,7 +5,7 @@ import pymol
 import numpy as np
 import sys
 
-def hairpin(hicfile,chrom,window1=2,window2=20):
+def hairpin(hicfile,window1=2,window2=20,chrom):
     if type(hicfile)!=str:
         data=np.asarray(hicfile)
     else:
@@ -35,21 +35,59 @@ def hairpin(hicfile,chrom,window1=2,window2=20):
         signal=ridge/np.sqrt(left*right)
         signals[i]=signal
     # return signals
-    position2bed(signals,chrom)
+    #position2bed(signals,chrom)
+    find_hairpin_region(signals,cutoff=0.95,chrom)
 
 def position2bed(vector, chrm):
     for i in xrange(len(vector)):
         print chrm + "\t" + str(i*40000) +str(((i+1)*40000)-1) + "\t" + str(vector[i])
 
-def find_hairpin_region(vector,cutoff=0.95):
-    index1=vector >= cutoff
-    hairpin_region1=np.array([])
+def find_hairpin_region(vector,chrom,cutoff=0.95):
+    hairpin_pos=np.array([])
+    vector = np.array(vector)
     for i in xrange(len(vector)):
-        if inde1[i] == True:
-            hairpin_region=np.append(hairpin_region1,i)
-        else:
+        if i == len(vector) -1 or i ==0:
+            continue
+        hairpin_pos=np.append(hairpin_pos,i)
+
+    ### Every pair of key:value in hairpin_region2 was used to store a piece of region which signal value above the cutoff
+    ### The hairpin_region1 was used to store the position information of regions that signal value >= cutoff
+    hairpin_region={}
+    count=1
+    hairpin_region[count]=np.array([])
+    for j in hairpin_pos:
+        if vector[j]<= vector[j+1] :
+            if vector[j-1] <= vector[j]:
+                hairpin_region[count] = np.append(hairpin_region[count],j)
+            else:
+                count +=1
+                hairpin_region[count]=np.array([j])
+        else :
+            hairpin_region[count]=np.append(hairpin_region[count],[j])
+
+    ### to remove those regions that maximum of the peak less than cutoff (i.e remove the noise)
+    for key in hairpin_region.keys():
+        if np.max(hairpin_region[key]) <= cutoff:
+            continue
+        else：
+            left_bound=hairpin_region[key][0]
+            right_bound=hairpin_region[key][-1]
+            print chrom + "\t" + str(int(left_bound)*40000) + "\t" +str((int(right_bound)*40000)-1)
+
+
+def old_find_hairpin_region(vector,cutoff=0.95,chrom):
+    hairpin_region1=np.array([])
+    index1= vector >= cutoff
+    for i in xrange(len(vector)):
+        if i == len(vector) -1:
             continue
 
+        if index1[i] == True:
+            hairpin_region1=np.append(hairpin_region1,i)
+        else:
+            continue
+    ### Every pair of key:value in hairpin_region2 was used to store a piece of region which signal value above the cutoff
+    ### The hairpin_region1 was used to store the position information of regions that signal value >= cutoff
     hairpin_region2={}
     count=1
     for j in xrange(len(hairpin_region1)):
@@ -64,7 +102,12 @@ def find_hairpin_region(vector,cutoff=0.95):
         else:
             count += 1
     local_optimal=np.array([])
+
     for key in hairpin_region2.keys():
+        local_optimal=np.append(local_optimal,np.max(hairpin_region2[key]))
+        left_bound=hairpin_region2[key][0]
+        right_bound=hairpin_region2[key][len(hairpin_region2[key]) - 1]
+        print chrom + "\t" + str(int(left_bound)*40000) + "\t" +str((int(right_bound)*40000)-1)
 
 
 if __name__ == '__main__':
@@ -96,7 +139,7 @@ if __name__ == '__main__':
 
     #dict1={}
     for i in Chrms:
-        hairpin(i + '.txt', window1=2, window2=20,chrom=i)
+        hairpin(i + '.txt', chrom=i,window1=2, window2=20)
         #dict1[i]=hairpin(i+'.txt',window1=2,window2=20)
     #for j in dict1:
         #np.savetxt(j+'_hairpin.txt',dict1[j],delimiter='\t',fmt='%f')
