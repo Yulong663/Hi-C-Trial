@@ -74,6 +74,42 @@ def find_hairpin_region(vector,chrom,cutoff=0.95):
             right_bound=hairpin_region[key][-1]
             print chrom + "\t" + str(int(left_bound)*40000) + "\t" +str((int(right_bound)*40000)-1)
 
+		
+		
+		
+
+def find_hairpin_region_1(vector,chrom,cutoff=0.85):
+    vector=np.array(vector)
+    hairpin_region1=np.array([])
+    for i in xrange(len(vector)):
+        hairpin_region1=np.append(hairpin_region1,i)                # store the position information of hairpin_signal vector
+
+    hairpin_region2={}
+    count=1
+    for j in xrange(len(hairpin_region1)):
+        if j == len(hairpin_region1) -1:
+            continue
+
+        if vector[hairpin_region1[j]] <= vector[hairpin_region1[j+1]] and hairpin_region1[j]+1 == hairpin_region1[j+1]:
+            if count in hairpin_region2:
+                hairpin_region2[count]=np.append(hairpin_region2[count],hairpin_region1[j])
+            else:
+                hairpin_region2[count]=np.array([hairpin_region1[j]])
+        ### under this condition test,every piece of hairpin_region will lost the final block.If not to do so , the pieces will connect unwillingly !
+        elif vector[hairpin_region1[j]] > vector[hairpin_region1[j+1]] and hairpin_region1[j]+ 1 == hairpin_region1[j+1]:
+            if count in hairpin_region2:
+                hairpin_region2[count]=np.append(hairpin_region2[count],hairpin_region1[j])
+            else:
+                hairpin_region2[count]=np.array([hairpin_region1[j]])                ### remind if there is only 1 point, then the region will a np.array(value), and report wrong message
+        else:
+            count += 1
+    local_optimal=np.array([])
+    for key in hairpin_region2.keys():
+        local_optimal=np.append(local_optimal,np.max(hairpin_region2[key]))
+        left_bound=hairpin_region2[key][0]
+        right_bound=hairpin_region2[key][len(hairpin_region2[key])-1] + 1
+        print chrom + "\t" + str(int(left_bound)*40000) + "\t" +str((int(right_bound) +1) * 40000 - 1)
+
 
 def old_find_hairpin_region(vector,cutoff=0.95,chrom):
     hairpin_region1=np.array([])
