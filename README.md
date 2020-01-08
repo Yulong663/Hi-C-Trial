@@ -7,3 +7,6 @@ This is my first trial of using github and this repository are about to record t
 2、Calculate whether the distribution between mono replicate1 and replicate2 are same or not.(KS test or Wilconx test)   
 
 3、Counts scatterplot for every regions of 3 pairs(mono->mono; mac->mac;native mono->mac)   
+
+(Finished above)
+See what's coming for the next project.
