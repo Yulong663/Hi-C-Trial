@@ -8,5 +8,6 @@ This is my first trial of using github and this repository are about to record t
 
 3、Counts scatterplot for every regions of 3 pairs(mono->mono; mac->mac;native mono->mac)   
 
-(Finished above)
+(Finished above)  
+
 See what's coming for the next project.
