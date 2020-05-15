@@ -2,6 +2,8 @@ import numpy as np
 import re
 from collections import OrderedDict
 import sets
+import sys
+
 
 ## INPUT  ：  the raw StringTie assemble transcript output
 ## OUTPUT:    the dict to store the gene and transcript information that satisfy the condition
@@ -50,7 +52,7 @@ def cal_RP(input_dict):
         tr_list=input_dict.keys()
         tr_fpkm=[]
         for key in tr_list:
-            tr_fpkm.apend(input_dict[key]['fpkm'])
+            tr_fpkm.append(input_dict[key]['fpkm'])
         
         total_fpkm=float(sum(tr_fpkm))    
         tr_rp=[i/total_fpkm for i in tr_fpkm]
@@ -63,11 +65,11 @@ def cal_RP(input_dict):
 ## remind that before calculate the Diff_CP for each pair of transcript between cyto and rib
 ## to sort it first and make sure each transcript in the pair is the same one
 def cal_Diff_CP(cyto_trans_dict,rib_trans_dict,output):
-    cyto=cal_RP(cyto_trans_dict)
-    rib=cal_RP(rib_trans_dict)
+    cyto=cal_RP(select_trans(cyto_trans_dict))
+    rib=cal_RP(select_trans(rib_trans_dict))
     
-    gene1=set(cyto_trans_dict.keys())
-    gene2=set(rib_trans_dict.keys())
+    gene1=set(cyto.keys())
+    gene2=set(rib.keys())
     
     file1=open(output,"w")
     common_gene=gene1.intersection(gene2)                          # figure out what is the common gene   
@@ -82,7 +84,7 @@ def cal_Diff_CP(cyto_trans_dict,rib_trans_dict,output):
             for tr in common_tr:
                 diff_cp=cyto[gene][tr]['rp']-rib[gene][tr]['rp']   # diff_cp=cyto_cp -rib_cp
                 diff_cp_list.append(diff_cp)
-                positive_tran=min(diff_cp_list)                    # posotive selection means the minimal difference between cto and rib is less
+                positive_tran=min(diff_cp_list)                    # posotive selection means the minimal difference between cyto and rib is less
                 negative_tran=max(diff_cp_list)                    # negative selection means the maximal difference
                 selection_power=(abs(negative_tran) + abs(positive_tran))/2.0
                 file1.write(gene + "\t" + tr + "\t" + str(diff_cp) + "\t" + str(diff_cp) + "\n")
@@ -90,4 +92,8 @@ def cal_Diff_CP(cyto_trans_dict,rib_trans_dict,output):
         else:
             continue
             
+            
+if __name__ =="__main__":
+    
+    cal_Diff_CP(sys.argv[1],sys.argv[2],sys.argv[3])
             
