@@ -2,6 +2,10 @@ import numpy as np
 import re
 from collections import OrderedDict
 import sets
+
+## INPUT  ：  the raw StringTie assemble transcript output
+## OUTPUT:    the dict to store the gene and transcript information that satisfy the condition
+## CONDITION: The gene have at least 2 transcript and fpkm of one transcript must > 2
 def select_trans(input):
     file1=open(input,"r")
     transcript_dict=OrderedDict()
@@ -86,4 +90,4 @@ def cal_Diff_CP(cyto_trans_dict,rib_trans_dict,output):
         else:
             continue
             
-    
+            
