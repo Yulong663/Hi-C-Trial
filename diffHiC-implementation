@@ -1,0 +1,164 @@
+library("GenomicRanges")
+library("IRanges")
+library("InteractionSet")
+library("diffHic")
+library("edgeR")
+library("SummarizedExperiment")
+library("statmod")
+library("BSgenome.Hsapiens.UCSC.hg19")
+library("csaw")
+
+
+# load chr1 data for initialization
+
+wd<-"D:/R studio/diffHic"
+file1<- paste(wd,"/mono3/","chr1",".txt",sep="")
+file2<- paste(wd,"/mono6/","chr1",".txt",sep="")
+file3<- paste(wd,"/mac3/","chr1",".txt",sep="")
+file4<- paste(wd,"/mac4/","chr1",".txt",sep="")
+hj1<-1:22
+hj2<-LETTERS[24:25]
+as.character(hj1)
+hj<-paste("chr",c(hj1,hj2),sep="")
+hj
+bin_size<-40000
+total<-c(63550823,32729882,31578092,53086418)
+
+
+matrix1<-read.table(file1,header = FALSE,sep = "\t")
+matrix2<-read.table(file2,header = FALSE,sep = "\t")
+matrix3<-read.table(file3,header = FALSE,sep = "\t")
+matrix4<-read.table(file4,header = FALSE,sep = "\t")
+matrix1<-as.matrix(matrix1)
+matrix2<-as.matrix(matrix2)
+matrix3<-as.matrix(matrix3)
+matrix4<-as.matrix(matrix4)
+matrix_size <-dim(matrix1)[1]
+rowRange<-GRanges(seqnames = hj[i],
+                  ranges = IRanges(0:(matrix_size-1)*bin_size+1 ,1:matrix_size*bin_size))  #be careful that "+1" and "-1" cannot appear at the same time 
+cm1<-ContactMatrix(matrix = matrix1, rowRange,rowRange)
+cm2<-ContactMatrix(matrix = matrix2, rowRange,rowRange)
+cm3<-ContactMatrix(matrix = matrix3, rowRange,rowRange)
+cm4<-ContactMatrix(matrix = matrix4, rowRange,rowRange)
+data_merge<-mergeCMs(cm1,cm2,cm3,cm4)
+
+########################################################
+#Construction of InteractionSet Object
+########################################################
+
+
+
+#data_merge<-InteractionSet()
+#data_merge
+for (i in 2:24){
+  file1<- paste(wd,"/mono3/",hj[i],".txt",sep="")
+  file2<- paste(wd,"/mono6/",hj[i],".txt",sep="")
+  file3<- paste(wd,"/mac3/",hj[i],".txt",sep="")
+  file4<- paste(wd,"/mac4/",hj[i],".txt",sep="")
+  matrix1<-read.table(file1,header = FALSE,sep = "\t")
+  matrix2<-read.table(file2,header = FALSE,sep = "\t")
+  matrix3<-read.table(file3,header = FALSE,sep = "\t")
+  matrix4<-read.table(file4,header = FALSE,sep = "\t")
+  matrix1<-as.matrix(matrix1)
+  matrix2<-as.matrix(matrix2)
+  matrix3<-as.matrix(matrix3)
+  matrix4<-as.matrix(matrix4)
+  matrix_size <-dim(matrix1)[1]
+  rowRange<-GRanges(seqnames = hj[i],
+                     ranges = IRanges(0:(matrix_size-1)*bin_size+1 ,1:matrix_size*bin_size))  #be careful that "+1" and "-1" cannot appear at the same time 
+  cm1<-ContactMatrix(matrix = matrix1, rowRange,rowRange)
+  cm2<-ContactMatrix(matrix = matrix2, rowRange,rowRange)
+  cm3<-ContactMatrix(matrix = matrix3, rowRange,rowRange)
+  cm4<-ContactMatrix(matrix = matrix4, rowRange,rowRange)
+  iset<-mergeCMs(cm1,cm2,cm3,cm4)
+  iset$totals<-data_merge$totals
+  data_merge<-rbind(data_merge,iset)
+}
+data_merge$totals<-total
+deg<-asDGEList(data_merge)
+
+data_merge$
+
+########################################################
+# Filtering of uninterested interactions
+########################################################
+
+ab <- aveLogCPM(deg)
+keep <- aveLogCPM(deg) > 0      #filter the 0 interaction 
+summary(keep)
+data_merge <- data_merge[keep,]
+#hist(ave.ab, xlab="Average abundance", col="grey80", main="")
+#count.keep <- ave.ab >= aveLogCPM(5, lib.size=mean(data_merge$totals))  # The threshold is set to 5
+#dummy <- chr17[count.keep,]
+
+
+
+
+########################################################
+# Non-linear Normalizaiton for Hi-C data
+########################################################
+
+
+## code below are used for visulization
+##
+# o <-order(ab)
+# adj.counts <- cpm(deg, log=TRUE)
+# adj.counts
+# mval <- adj.counts[,2]-adj.counts[,3]
+# smoothScatter(ab, mval, xlab="A", ylab="M", main="Mono6 vs Mac3")
+# fit <- loessFit(x=ab, y=mval)
+# lines(ab[o], fit$fitted[o], col="red")
+data_merge <- normOffsets(data_merge, type="loess", se.out=TRUE)
+head(data_merge)
+assay(data_merge, "counts")
+nb.off <- assay(data_merge, "offset")
+
+# remove interactions of diagnal region
+
+neardiag <- filterDiag(data_merge, by.diag = 2)
+nb.off <- matrix(0, nrow=nrow(data_merge), ncol=ncol(data_merge))
+nb.off[neardiag] <- normOffsets(data_merge[neardiag,], type="loess", se.out=FALSE)
+nb.off[!neardiag] <- normOffsets(data_merge[!neardiag,], type="loess", se.out=FALSE)
+assay(data_merge, "offset") <- nb.off # updating the offset matrix
+
+
+## code below are used for visulization
+##
+# adj.counts <- log2(assay(data_merge) + 2) - nb.off/log(2)
+# mval <- adj.counts[,1]-adj.counts[,2]
+# smoothScatter(ab, mval, xlab="A", ylab="M", main="Mono vs Mac")
+# fit <- loessFit(x=ab, y=mval)
+# lines(ab[o], fit$fitted[o], col="red")
+
+
+########################################################
+# Modeling the biological variability
+########################################################
+
+design <- model.matrix(~factor(c("mono","mono","mac", "mac")))
+colnames(design) <- c("Intercept", "Mac")
+design
+
+deg<-asDGEList(data_merge)
+y<-estimateDisp(deg,design)
+y$common.dispersion
+plotBCV(y)
+
+fit <- glmQLFit(y, design, robust=TRUE)
+plotQLDisp(fit)
+summary(fit$df.prior)
+
+
+########################################################
+# Testing for significantinteractions
+########################################################
+
+result <- glmQLFTest(fit,coef = 2)
+topTags(result)
+result$table
+sig<-result$table$PValue <0.05
+summary(sig)
+
+clusters <- diClusters(data_merge, result$table, target=0.05,cluster.args=list(tol=1))
+head(clusters$interactions)
+clusters
